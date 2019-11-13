@@ -22,6 +22,9 @@ from getsub.zimuzu import ZimuzuDownloader
 from getsub.zimuku import ZimukuDownloader
 
 
+IMPORTANT_KEYWORDS = ('AMZN', 'WEB', 'HDTV')
+
+
 class GetSubtitles(object):
 
     if sys.stdout.encoding == "cp936":
@@ -66,7 +69,7 @@ class GetSubtitles(object):
             ".mp4",
             ".m4p",
             ".m4v",
-            "mpg",
+            ".mpg",
             ".mp2",
             ".mpeg",
             ".mpe",
@@ -280,6 +283,8 @@ class GetSubtitles(object):
                 a_sub_info = a_sub_info.decode("utf8")
                 a_sub_info = a_sub_info.encode(GetSubtitles.output_encode)
             a_sub_info = prefix + a_sub_info
+            if "version" in sub_dict[key]:
+                a_sub_info += f"({sub_dict[key]['version']})"
             print(a_sub_info)
 
         indexes = range(len(sub_dict.keys()))
@@ -363,43 +368,28 @@ class GetSubtitles(object):
                 score[-1] -= 2
                 continue  # 名字剧集都不匹配
 
-            try:
-                if "简体" in one_sub or "chs" in one_sub or ".gb." in one_sub:
-                    score[-1] += 5
-                if "繁体" in one_sub or "cht" in one_sub or ".big5." in one_sub:
-                    score[-1] += 3
-                if (
-                    "中英" in one_sub
-                    or "简英" in one_sub
-                    or "双语" in one_sub
-                    or "chs.eng" in one_sub
-                    or "chs&eng" in one_sub
-                    or "简体&英文" in one_sub
-                ):
-                    score[-1] += 7
-            # py2 strange decode error, happens time to time
-            except UnicodeDecodeError:
-                if (
-                    "简体".decode("utf8") in one_sub
-                    or "chs" in one_sub
-                    or ".gb." in one_sub
-                ):
-                    score[-1] += 5
-                if (
-                    "繁体".decode("utf8") in one_sub
-                    or "cht" in one_sub
-                    or ".big5." in one_sub
-                ):
-                    score[-1] += 3
-                if (
-                    "中英".decode("utf8") in one_sub
-                    or "简英".decode("utf8") in one_sub
-                    or "双语".decode("utf8") in one_sub
-                    or "简体&英文".decode("utf8") in one_sub
-                    or "chs.eng".decode("utf8") in one_sub
-                    or "chs&eng" in one_sub
-                ):
-                    score[-1] += 7
+            if "简体" in one_sub or "chs" in one_sub or ".gb." in one_sub:
+                score[-1] += 3
+            if "繁体" in one_sub or "cht" in one_sub or ".big5." in one_sub:
+                score[-1] += 5
+            if (
+                "中英" in one_sub
+                or "简英" in one_sub
+                or "双语" in one_sub
+                or "chs.eng" in one_sub
+                or "chs&eng" in one_sub
+                or "简体&英文" in one_sub
+            ):
+                score[-1] += 7
+            elif (
+                "中英" in one_sub
+                or "繁英" in one_sub
+                or "双语" in one_sub
+                or "cht.eng" in one_sub
+                or "cht&eng" in one_sub
+                or "繁体&英文" in one_sub
+            ):
+                score[-1] += 10
 
             score[-1] += ("ass" in one_sub or "ssa" in one_sub) * 2
             score[-1] += ("srt" in one_sub) * 1
@@ -675,6 +665,11 @@ class GetSubtitles(object):
 
         for one_video, video_info in all_video_dict.items():
 
+            important_keywords = []
+            for keyword in IMPORTANT_KEYWORDS:
+                if keyword in one_video:
+                    important_keywords.append(keyword)
+
             self.s_error = ""  # 重置错误记录
             self.f_error = ""
 
@@ -690,7 +685,15 @@ class GetSubtitles(object):
                 sub_dict = order_dict()
                 for i, downloader in enumerate(self.downloader):
                     try:
-                        sub_dict.update(downloader.get_subtitles(tuple(keywords)))
+                        subtitles = downloader.get_subtitles(tuple(keywords))
+                        for subtitle_name, payload in subtitles.items():
+                            subtitle_version = payload.get('version', subtitle_name)
+                            for keyword in important_keywords:
+                                if keyword not in subtitle_version:
+                                    print(f"{subtitle_version} does not contain {keyword}, skip")
+                                    break
+                            else:
+                                sub_dict[subtitle_name] = payload
                     except ValueError as e:
                         if str(e) == "Zimuku搜索结果出现未知结构页面":
                             print(prefix + " warn: " + str(e))
@@ -705,13 +708,14 @@ class GetSubtitles(object):
                             sys.exit(0)
                     if len(sub_dict) >= self.sub_num:
                         break
-                if len(sub_dict) == 0:
+                if not sub_dict:
                     self.s_error += "no search results. "
                     continue
 
                 extract_sub_names = []
+
                 # 遍历字幕包直到有猜测字幕
-                while not extract_sub_names and len(sub_dict) > 0:
+                while not extract_sub_names and sub_dict:
                     sub_choices = self.choose_subtitle(sub_dict)
                     for i, choice in enumerate(sub_choices):
                         sub_choice, link, session = choice
