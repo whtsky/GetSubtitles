@@ -10,13 +10,13 @@ else:
     py = 3
 
 # system encoding
-if sys.stdout.encoding == 'cp936':
+if sys.stdout.encoding == "cp936":
     is_gbk = True
 else:
     is_gbk = False
 
 # set prefix
 if py == 2 and is_gbk:
-    prefix = '├ '.decode('utf8').encode('gbk')
+    prefix = "├ ".decode("utf8").encode("gbk")
 else:
-    prefix = '├ '
+    prefix = "├ "
