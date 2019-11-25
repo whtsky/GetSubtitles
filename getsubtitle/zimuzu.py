@@ -8,8 +8,9 @@ import json
 import requests
 from bs4 import BeautifulSoup
 
-from .sys_global_var import py, prefix
+from .sys_global_var import prefix
 from .progress_bar import ProgressBar
+from .utils import get_type_score
 
 
 """ Zimuzu 字幕下载器
@@ -45,20 +46,15 @@ class ZimuzuDownloader(object):
             r = s.get(self.search_url.format(keyword), headers=self.headers, timeout=10)
             bs_obj = BeautifulSoup(r.text, "html.parser")
             tab_text = bs_obj.find("div", {"class": "article-tab"}).text
-            tab_text = tab_text.encode("utf8") if py == 2 else tab_text
+            tab_text = tab_text
             if "字幕(0)" not in tab_text:
                 for one_box in bs_obj.find_all("div", {"class": "search-item"}):
                     sub_name = "[ZMZ]" + one_box.find("p").find("font").text
-                    sub_name = sub_name.encode("utf8") if py == 2 else sub_name
+                    sub_name = sub_name
                     a = one_box.find("a")
-                    text = a.text.encode("utf8") if py == 2 else a.text
+                    text = a.text
                     sub_url = self.site_url + a.attrs["href"]
-                    type_score = 0
-                    type_score += ("英文" in text) * 1
-                    type_score += ("简体" in text) * 2
-                    type_score += ("繁体" in text) * 4
-                    type_score += ("中英" in text) * 8
-                    sub_dict[sub_name] = {"lan": type_score, "link": sub_url}
+                    sub_dict[sub_name] = {"lan": get_type_score(text), "link": sub_url}
                     if len(sub_dict) >= sub_num:
                         del keywords[:]  # 字幕条数达到上限，清空keywords
                         break

@@ -11,8 +11,9 @@ from collections import OrderedDict as order_dict
 import requests
 from bs4 import BeautifulSoup
 
-from .sys_global_var import py, prefix
+from .sys_global_var import prefix
 from .progress_bar import ProgressBar
+from .utils import get_type_score
 
 
 """ SubHD 字幕下载器
@@ -58,10 +59,7 @@ class SubHDDownloader(object):
             r = s.get(self.search_url + keyword, headers=self.headers, timeout=10)
             bs_obj = BeautifulSoup(r.text, "html.parser")
             try:
-                if py == 2:
-                    small_text = bs_obj.find("small").text.encode("utf8")
-                else:
-                    small_text = bs_obj.find("small").text
+                small_text = bs_obj.find("small").text
             except AttributeError as e:
                 char_error = "The URI you submitted has disallowed characters"
                 if char_error in bs_obj.text:
@@ -75,23 +73,11 @@ class SubHDDownloader(object):
                 for one_box in bs_obj.find_all("div", {"class": "box"}):
                     a = one_box.find("div", {"class": "d_title"}).find("a")
                     sub_url = self.site_url + a.attrs["href"]
-                    sub_name = (
-                        "[SUBHD]" + a.text.encode("utf8")
-                        if py == 2
-                        else "[SUBHD]" + a.text
-                    )
-                    if py == 2:
-                        text = one_box.text.encode("utf8")
-                    else:
-                        text = one_box.text
+                    sub_name = "[SUBHD]" + a.text
+                    text = one_box.text
                     if "/ar" in a.attrs["href"]:
-                        type_score = 0
-                        type_score += ("英文" in text) * 1
-                        type_score += ("繁体" in text) * 4
-                        type_score += ("简体" in text) * 2
-                        type_score += ("双语" in text) * 8
                         sub_dict[sub_name] = {
-                            "lan": type_score,
+                            "lan": get_type_score(text),
                             "link": sub_url,
                             "version": a.attrs["title"],
                         }

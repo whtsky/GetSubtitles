@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "getsubtitle"
+version = "2019.11.25"
+description = "download subtitles easily"
+license = "MIT"
+authors = ["Wu Haotian <whtsky@gmail.com>", "gyh1621 <guoyh01@gmail.com>"]
+
+[tool.poetry.scripts]
+getsubtitle = "getsubtitle.main: main"
+
+[tool.poetry.dependencies]
+python = "^3.6"
+beautifulsoup4 = ">=4.4.0"
+guessit = "==3.1.0"
+requests = ">=2.0"
+archi = "^0.1.1"
+
+[tool.poetry.dev-dependencies]
+black = {version = "^19.10b0", allow-prereleases = true}

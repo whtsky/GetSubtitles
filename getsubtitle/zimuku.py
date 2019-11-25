@@ -14,8 +14,9 @@ import requests
 from bs4 import BeautifulSoup
 from guessit import guessit
 
-from .sys_global_var import py, prefix
+from .sys_global_var import prefix
 from .progress_bar import ProgressBar
+from .utils import get_type_score
 
 
 """ Zimuku 字幕下载器
@@ -54,10 +55,7 @@ class ZimukuDownloader(object):
         while True:
             # 当前关键字搜索
             r = s.get(self.search_url + keyword, timeout=10)
-            if py == 2:
-                html = r.text.encode("utf8")
-            else:
-                html = r.text
+            html = r.text
 
             if "搜索不到相关字幕" not in html:
                 bs_obj = BeautifulSoup(r.text, "html.parser")
@@ -68,12 +66,8 @@ class ZimukuDownloader(object):
                         title_boxes = item.find("div", {"class": "title"}).find_all("p")
                         title_box = title_boxes[0]
                         sub_title_box = title_boxes[1]
-                        if py == 2:
-                            item_title = title_box.text.encode("utf8")
-                            item_sub_title = sub_title_box.text.encode("utf8")
-                        else:
-                            item_title = title_box.text
-                            item_sub_title = sub_title_box.text
+                        item_title = title_box.text
+                        item_sub_title = sub_title_box.text
                         item_info = guessit(item_title)
                         if info.get("year") and item_info.get("year"):
                             if info["year"] != item_info["year"]:
@@ -117,19 +111,13 @@ class ZimukuDownloader(object):
                         for a in item.find_all("td", {"class": "first"})[:3]:
                             a = a.a
                             a_link = self.site_url + a.attrs["href"]
-                            if py == 2:
-                                a_title = a.text.encode("utf8")
-                            else:
-                                a_title = a.text
+                            a_title = a.text
                             a_title = "[ZIMUKU]" + a_title
                             sub_dict[a_title] = {"type": "default", "link": a_link}
                 elif bs_obj.find("div", {"class": "persub"}):
                     # 射手字幕页面
                     for persub in bs_obj.find_all("div", {"class": "persub"}):
-                        if py == 2:
-                            a_title = persub.h1.text.encode("utf8")
-                        else:
-                            a_title = persub.h1.text
+                        a_title = persub.h1.text
                         a_link = self.site_url + persub.h1.a.attrs["href"]
                         a_title = "[ZIMUKU]" + a_title
                         sub_dict[a_title] = {"type": "shooter", "link": a_link}
@@ -177,20 +165,8 @@ class ZimukuDownloader(object):
                 r = s.get(sub_info["link"], timeout=60)
                 bs_obj = BeautifulSoup(r.text, "html.parser")
                 lang_box = bs_obj.find("ul", {"class": "subinfo"}).find("li")
-                type_score = 0
-                if py == 2:
-                    text = lang_box.text.encode("utf8")
-                else:
-                    text = lang_box.text
-                if "英" in text:
-                    type_score += 1
-                elif "繁" in text:
-                    type_score += 2
-                elif "简" in text:
-                    type_score += 4
-                elif "双语" in text:
-                    type_score += 8
-                sub_info["lan"] = type_score
+                text = lang_box.text
+                sub_info["lan"] = get_type_score(text)
                 download_link = bs_obj.find("a", {"id": "down1"}).attrs["href"]
                 sub_info["link"] = download_link
             backup_session = requests.session()
