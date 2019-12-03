@@ -55,7 +55,7 @@ class GetSubtitles(object):
         self.query, self.single = query, single
         self.save_original, self.over = save_original, over
         if not sub_num:
-            self.sub_num = 5
+            self.sub_num = 2
         else:
             self.sub_num = int(sub_num)
         self.plex = plex
