@@ -42,7 +42,7 @@ def get_info_dict(name: str):
     return info_dict
 
 
-must_matches = ["streaming_service", "season", "episode", "source"]
+must_matches = ["title", "streaming_service", "season", "episode", "source"]
 
 
 def video_match(a: Tuple[str, dict], b: Tuple[str, dict]):
