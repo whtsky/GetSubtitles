@@ -1,15 +1,16 @@
 # coding: utf-8
 
 from __future__ import print_function
+
+import json
 from collections import OrderedDict as order_dict
 from contextlib import closing
-import json
 
 import requests
 from bs4 import BeautifulSoup
 
-from .sys_global_var import prefix
 from .progress_bar import ProgressBar
+from .sys_global_var import prefix
 from .utils import get_type_score
 
 
@@ -50,11 +51,14 @@ class ZimuzuDownloader(object):
             if "字幕(0)" not in tab_text:
                 for one_box in bs_obj.find_all("div", {"class": "search-item"}):
                     sub_name = "[ZMZ]" + one_box.find("p").find("font").text
-                    sub_name = sub_name
                     a = one_box.find("a")
                     text = a.text
                     sub_url = self.site_url + a.attrs["href"]
-                    sub_dict[sub_name] = {"lan": get_type_score(text), "link": sub_url}
+                    sub_dict[sub_name] = {
+                        "lan": get_type_score(text),
+                        "link": sub_url,
+                        "version": one_box.find('font', 'f4').text,
+                    }
                     if len(sub_dict) >= sub_num:
                         del keywords[:]  # 字幕条数达到上限，清空keywords
                         break

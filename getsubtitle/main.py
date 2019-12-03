@@ -10,10 +10,10 @@ from collections import OrderedDict
 from traceback import format_exc
 
 import chardet
+import pkg_resources
 from guessit import guessit
 from requests import exceptions
 
-from .__version__ import __version__
 from .archive import extract_subtitle
 from .constants import (service_short_names, sub_format_list,
                         supportted_compression_extension, video_format_list)
@@ -23,6 +23,10 @@ from .utils import get_info_dict, get_type_score, video_match
 from .zimuku import ZimukuDownloader
 from .zimuzu import ZimuzuDownloader
 
+try:
+    __version__ = pkg_resources.get_distribution("getsubtitle").version
+except pkg_resources.DistributionNotFound:
+    __version__ = "dev"
 
 class GetSubtitles(object):
 
@@ -432,10 +436,11 @@ class GetSubtitles(object):
 def main():
 
     arg_parser = argparse.ArgumentParser(
-        prog="GetSubtitles",
-        epilog="getsub %s\n\n@guoyuhang" % (__version__),
         description="download subtitles easily",
         formatter_class=argparse.RawTextHelpFormatter,
+    )
+    arg_parser.add_argument(
+        "-v", "--version", action="version", version="%(prog)s " + __version__
     )
     arg_parser.add_argument(
         "name", help="the video's name or full path or a dir with videos"

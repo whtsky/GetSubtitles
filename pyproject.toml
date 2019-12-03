@@ -4,6 +4,8 @@ version = "2019.11.25"
 description = "download subtitles easily"
 license = "MIT"
 authors = ["Wu Haotian <whtsky@gmail.com>", "gyh1621 <guoyh01@gmail.com>"]
+readme = "README.md"
+repository = "https://github.com/whtsky/getsubtitle"
 
 [tool.poetry.scripts]
 getsubtitle = "getsubtitle.main: main"
