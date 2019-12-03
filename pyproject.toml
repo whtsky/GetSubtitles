@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "getsubtitle"
-version = "2019.11.25"
+version = "2019.12.03"
 description = "download subtitles easily"
 license = "MIT"
 authors = ["Wu Haotian <whtsky@gmail.com>", "gyh1621 <guoyh01@gmail.com>"]
