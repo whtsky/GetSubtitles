@@ -1,14 +1,14 @@
 on: push
 name: Main workflow
 jobs:
-  pytest:
-    name: pytest
+  codestyle:
+    name: codestyle
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
         with:
-          python-version: "3.7"
+          python-version: "3.8"
           architecture: "x64"
       - uses: dschep/install-poetry-action@v1.2
         with:
@@ -16,7 +16,24 @@ jobs:
       - run: poetry install
       - run: poetry run black --check .
       # - run: poetry run mypy -m getsubtitle -m tests
+
+  pytest:
+    name: pytest ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.6', '3.7', '3.8']
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: "x64"
+      - uses: dschep/install-poetry-action@v1.2
+        with:
+          preview: true
+      - run: poetry install
       - run: poetry run pytest --cov=getsubtitle --cov-report xml --cov-report term-missing
-      # - uses: codecov/codecov-action@v1.0.2
-      #   with:
-      #     token: ${{secrets.CODECOV_TOKEN}}
+      - uses: codecov/codecov-action@v1.0.2
+        with:
+          token: ${{secrets.CODECOV_TOKEN}}
