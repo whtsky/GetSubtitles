@@ -57,7 +57,7 @@ class ZimuzuDownloader(object):
                     sub_dict[sub_name] = {
                         "lan": get_type_score(text),
                         "link": sub_url,
-                        "version": one_box.find('font', 'f4').text,
+                        "version": one_box.find("font", "f4").text,
                     }
                     if len(sub_dict) >= sub_num:
                         del keywords[:]  # 字幕条数达到上限，清空keywords

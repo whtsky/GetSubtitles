@@ -19,3 +19,6 @@ archi = "^0.1.1"
 
 [tool.poetry.dev-dependencies]
 black = {version = "^19.10b0", allow-prereleases = true}
+pytest = "^5.3.1"
+pytest-cov = "^2.8.1"
+mypy = "^0.750"

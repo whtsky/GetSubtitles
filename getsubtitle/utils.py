@@ -5,6 +5,7 @@ from typing import List, Tuple
 
 from guessit import guessit
 
+from .constants import service_short_names
 from .sys_global_var import prefix
 
 
@@ -37,7 +38,7 @@ def get_info_dict(name: str):
     if c_num > e_num:
         title = e_pattern.sub("", title)
     else:
-        title = e_pattern.sub("", title)
+        title = c_pattern.sub("", title)
     info_dict["title"] = title.strip()
     return info_dict
 
@@ -83,3 +84,34 @@ def get_best_subtitle(subtitle_names: List[str], video_info: dict):
             current_max_score = score
             current_max_subtitle = subtitle_name
     return current_max_subtitle
+
+
+def get_keywords(info_dict):
+    """ 解析视频名
+        返回将各个关键字按重要度降序排列的列表，原始视频信息 """
+
+    keywords = []
+
+    # 若视频名中英混合，去掉字少的语言
+    title = info_dict["title"]
+
+    base_keyword = title
+    # if info_dict.get('year') and info_dict.get('type') == 'movie':
+    #    base_keyword += (' ' + str(info_dict['year']))  # 若为电影添加年份
+    if info_dict.get("season"):
+        base_keyword += " s%s" % str(info_dict["season"]).zfill(2)
+    keywords.append(base_keyword)
+    if info_dict.get("episode"):
+        keywords.append(" e%s" % str(info_dict["episode"]).zfill(2))
+    if info_dict.get("format"):
+        keywords.append(info_dict["format"])
+    if info_dict.get("release_group"):
+        keywords.append(info_dict["release_group"])
+    if info_dict.get("streaming_service"):
+        service_name = info_dict["streaming_service"]
+        short_names = service_short_names.get(service_name.lower())
+        if short_names:
+            keywords.append(short_names)
+    if info_dict.get("screen_size"):
+        keywords.append(str(info_dict["screen_size"]))
+    return keywords

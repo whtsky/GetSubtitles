@@ -15,11 +15,14 @@ from guessit import guessit
 from requests import exceptions
 
 from .archive import extract_subtitle
-from .constants import (service_short_names, sub_format_list,
-                        supportted_compression_extension, video_format_list)
+from .constants import (
+    sub_format_list,
+    supportted_compression_extension,
+    video_format_list,
+)
 from .subhd import SubHDDownloader
 from .sys_global_var import prefix
-from .utils import get_info_dict, get_type_score, video_match
+from .utils import get_info_dict, get_keywords, get_type_score, video_match
 from .zimuku import ZimukuDownloader
 from .zimuzu import ZimuzuDownloader
 
@@ -27,6 +30,7 @@ try:
     __version__ = pkg_resources.get_distribution("getsubtitle").version
 except pkg_resources.DistributionNotFound:
     __version__ = "dev"
+
 
 class GetSubtitles(object):
 
@@ -155,37 +159,6 @@ class GetSubtitles(object):
                 }
         return video_dict
 
-    def sort_keyword(self, name):
-        """ 解析视频名
-            返回将各个关键字按重要度降序排列的列表，原始视频信息 """
-
-        keywords = []
-        info_dict = get_info_dict(name)
-
-        # 若视频名中英混合，去掉字少的语言
-        title = info_dict["title"]
-
-        base_keyword = title
-        # if info_dict.get('year') and info_dict.get('type') == 'movie':
-        #    base_keyword += (' ' + str(info_dict['year']))  # 若为电影添加年份
-        if info_dict.get("season"):
-            base_keyword += " s%s" % str(info_dict["season"]).zfill(2)
-        keywords.append(base_keyword)
-        if info_dict.get("episode"):
-            keywords.append(" e%s" % str(info_dict["episode"]).zfill(2))
-        if info_dict.get("format"):
-            keywords.append(info_dict["format"])
-        if info_dict.get("release_group"):
-            keywords.append(info_dict["release_group"])
-        if info_dict.get("streaming_service"):
-            service_name = info_dict["streaming_service"]
-            short_names = service_short_names.get(service_name.lower())
-            if short_names:
-                keywords.append(short_names)
-        if info_dict.get("screen_size"):
-            keywords.append(str(info_dict["screen_size"]))
-        return keywords, info_dict
-
     def choose_subtitle(self, sub_dict):
 
         """ 传入候选字幕字典
@@ -313,7 +286,8 @@ class GetSubtitles(object):
             self.f_error = ""
 
             try:
-                keywords, info_dict = self.sort_keyword(video_filename)
+                info_dict = get_info_dict(video_filename)
+                keywords = get_keywords(info_dict)
                 print("\n" + prefix + " " + video_filename)  # 打印当前视频及其路径
                 print(prefix + " " + video_info["path"] + "\n" + prefix)
 
