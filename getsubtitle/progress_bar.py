@@ -1,10 +1,9 @@
 # coding: utf-8
 
-from __future__ import print_function
 from __future__ import division
-from time import sleep
 
 from shutil import get_terminal_size
+from time import sleep
 
 
 class ProgressBar(object):
@@ -37,8 +36,8 @@ class ProgressBar(object):
 
         for i in range(self.count_time + 1):
             info = "%s %ss" % (self.prefix_info, self.count_time - i)
-            print(" " * (terminal_width - 5), end="\r")
-            print(info, end="\r")
+            print(" " * (terminal_width - 5))
+            print(info)
             sleep(1)
 
     def point_wait(self, end=False):
@@ -47,7 +46,7 @@ class ProgressBar(object):
         info = "%s %s " % (self.prefix_info, self.title)
         info += "." * self.point[0]
         end_str = "\r" if not end else "\n"
-        print(" " * (terminal_width - 5), end="\r")
+        print(" " * (terminal_width - 5))
         print(info, end=end_str)
         if self.point[0] > self.point[1]:
             self.point[0] = 1

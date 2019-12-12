@@ -1,209 +1,152 @@
 #!/usr/bin/python3
 # coding: utf-8
 
-from __future__ import print_function
-
-try:
-    from urllib.parse import urljoin
-except ImportError:
-    from urlparse import urljoin
-from contextlib import closing
 from collections import OrderedDict as order_dict
+from contextlib import closing
+from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
-from guessit import guessit
 
-from .sys_global_var import prefix
+from .models import (Subtitle, SubtitleFile, SubtitleLanguage,
+                     get_subtitle_languages)
 from .progress_bar import ProgressBar
-from .utils import get_type_score
-
+from .sys_global_var import prefix
 
 """ Zimuku 字幕下载器
 """
-
-
-class ZimukuDownloader(object):
-    def __init__(self):
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5)\
+headers = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5)\
                             AppleWebKit 537.36 (KHTML, like Gecko) Chrome",
-            "Accept-Language": "zh-CN,zh;q=0.8",
-            "Accept": "text/html,application/xhtml+xml,\
+    "Accept-Language": "zh-CN,zh;q=0.8",
+    "Accept": "text/html,application/xhtml+xml,\
                         application/xml;q=0.9,image/webp,*/*;q=0.8",
-        }
-        self.site_url = "http://www.zimuku.la"
-        self.search_url = "http://www.zimuku.la/search?q="
+}
+site_url = "http://www.zimuku.la"
+search_url = "http://www.zimuku.la/search?q="
 
-    def get_subtitles(self, keywords, sub_num=10):
 
-        print(prefix + " Searching ZIMUKU...", end="\r")
+def download_file(file_name, download_link, session):
+    try:
+        if not session:
+            session = requests.session()
+        with closing(session.get(download_link, stream=True)) as response:
+            filename = response.headers["Content-Disposition"]
+            chunk_size = 1024  # 单次请求最大值
+            # 内容体总大小
+            content_size = int(response.headers["content-length"])
+            bar = ProgressBar(prefix + " Get", file_name.strip(), content_size)
+            sub_data_bytes = b""
+            for data in response.iter_content(chunk_size=chunk_size):
+                sub_data_bytes += data
+                bar.refresh(len(sub_data_bytes))
+    except requests.Timeout:
+        return None
+    if ".rar" in filename:
+        datatype = ".rar"
+    elif ".zip" in filename:
+        datatype = ".zip"
+    elif ".7z" in filename:
+        datatype = ".7z"
+    else:
+        datatype = "Unknown"
 
-        keywords = list(keywords)
-        keyword = " ".join(keywords)
-        info = guessit(keyword)
-        keywords.pop(0)
-        keywords.insert(0, info["title"])
-        if info.get("season"):
-            season = str(info["season"]).zfill(2)
-            keywords.insert(1, "s" + season)
+    return SubtitleFile(datatype=datatype, content=sub_data_bytes)
 
-        sub_dict = order_dict()
-        s = requests.session()
-        s.headers.update(self.headers)
 
-        while True:
-            # 当前关键字搜索
-            r = s.get(self.search_url + keyword, timeout=10)
-            html = r.text
+def get_subtitles(keyword: str):
+    print(prefix + " Searching ZIMUKU...")
+    subs = []
+    s = requests.session()
+    s.headers.update(headers)
 
-            if "搜索不到相关字幕" not in html:
-                bs_obj = BeautifulSoup(r.text, "html.parser")
+    # 当前关键字搜索
+    r = s.get(search_url + keyword, timeout=10)
+    html = r.text
 
-                if bs_obj.find("div", {"class": "item"}):
-                    # 综合搜索页面
-                    for item in bs_obj.find_all("div", {"class": "item"}):
-                        title_boxes = item.find("div", {"class": "title"}).find_all("p")
-                        title_box = title_boxes[0]
-                        sub_title_box = title_boxes[1]
-                        item_title = title_box.text
-                        item_sub_title = sub_title_box.text
-                        item_info = guessit(item_title)
-                        if info.get("year") and item_info.get("year"):
-                            if info["year"] != item_info["year"]:
-                                # 年份不匹配，跳过
-                                continue
-                        item_titles = [
-                            item_info.get("title", "").lower(),
-                            item_info.get("alternative_title", "").lower(),
-                        ] + item_sub_title.lower().strip().split(",")
-                        title_included = sum(
-                            [
-                                1
-                                for _ in item_sub_title
-                                if info["title"].lower() not in _
-                            ]
-                        )
-                        if title_included == 0:
-                            # guessit抽取标题不匹配，跳过
-                            item_title_split = [one.split() for one in item_titles]
-                            info_title_split = info["title"].lower().split()
-                            sum1 = sum(
-                                [
-                                    1
-                                    for _ in info_title_split
-                                    if _ in item_title_split[0]
-                                ]
-                            )
-                            sum2 = sum(
-                                [
-                                    1
-                                    for _ in info_title_split
-                                    if _ in item_title_split[1]
-                                ]
-                            )
-                            if not (
-                                sum1 / len(info_title_split) >= 0.5
-                                or sum2 / len(info_title_split) >= 0.5
-                            ):
-                                # 标题不匹配，跳过
-                                continue
-                        for a in item.find_all("td", {"class": "first"})[:3]:
-                            a = a.a
-                            a_link = self.site_url + a.attrs["href"]
-                            a_title = a.text
-                            a_title = "[ZIMUKU]" + a_title
-                            sub_dict[a_title] = {"type": "default", "link": a_link}
-                elif bs_obj.find("div", {"class": "persub"}):
-                    # 射手字幕页面
-                    for persub in bs_obj.find_all("div", {"class": "persub"}):
-                        a_title = persub.h1.text
-                        a_link = self.site_url + persub.h1.a.attrs["href"]
-                        a_title = "[ZIMUKU]" + a_title
-                        sub_dict[a_title] = {"type": "shooter", "link": a_link}
-                else:
-                    raise ValueError("Zimuku搜索结果出现未知结构页面")
+    if "搜索不到相关字幕" in html:
+        return []
 
-            if len(sub_dict) >= sub_num:
-                del keywords[:]
-                break
+    bs_obj = BeautifulSoup(r.text, "html.parser")
 
-            if len(keywords) > 1:
-                keyword = keyword.replace(keywords[-1], "").strip()
-                keywords.pop(-1)
-                continue
-
-            break
-
-        for sub_name, sub_info in sub_dict.items():
-            if sub_info["type"] == "default":
-                # 综合搜索字幕页面
-                r = s.get(sub_info["link"], timeout=60)
+    if bs_obj.find("div", {"class": "item"}):
+        # 综合搜索页面
+        for item in bs_obj.find_all("div", {"class": "item"}):
+            title_boxes = item.find("div", {"class": "title"}).find_all("p")
+            title_box = title_boxes[0]
+            sub_title_box = title_boxes[1]
+            item_title = title_box.text
+            item_sub_title = sub_title_box.text
+            for a in item.find_all("td", {"class": "first"})[:3]:
+                a = a.a
+                a_link = site_url + a.attrs["href"]
+                a_title = a.text
+                r = s.get(a_link, timeout=60)
                 bs_obj = BeautifulSoup(r.text, "html.parser")
                 lang_box = bs_obj.find("ul", {"class": "subinfo"}).find("li")
                 type_score = 0
+                language = SubtitleLanguage()
                 for lang in lang_box.find_all("img"):
                     if "uk" in lang.attrs["src"]:
-                        type_score += 1
+                        language.eng = True
                     elif "hongkong" in lang.attrs["src"]:
-                        type_score += 2
+                        language.zh_hant = True
                     elif "china" in lang.attrs["src"]:
-                        type_score += 4
-                    elif "jollyroger" in lang.attrs["src"]:
-                        type_score += 8
-                sub_info["lan"] = type_score
+                        language.zh_hans = True
                 download_link = bs_obj.find("a", {"id": "down1"}).attrs["href"]
-                download_link = urljoin(self.site_url, download_link)
+                download_link = urljoin(site_url, download_link)
                 r = s.get(download_link, timeout=60)
                 bs_obj = BeautifulSoup(r.text, "html.parser")
                 download_link = bs_obj.find("a", {"rel": "nofollow"})
                 download_link = download_link.attrs["href"]
-                download_link = urljoin(self.site_url, download_link)
-                sub_info["link"] = download_link
-            else:
-                # 射手字幕页面
-                r = s.get(sub_info["link"], timeout=60)
-                bs_obj = BeautifulSoup(r.text, "html.parser")
-                lang_box = bs_obj.find("ul", {"class": "subinfo"}).find("li")
-                text = lang_box.text
-                sub_info["lan"] = get_type_score(text)
-                download_link = bs_obj.find("a", {"id": "down1"}).attrs["href"]
-                sub_info["link"] = download_link
+                download_link = urljoin(site_url, download_link)
+                backup_session = requests.session()
+                backup_session.headers.update(s.headers)
+                backup_session.headers["Referer"] = a_link
+                backup_session.cookies.update(s.cookies)
+                subs.append(
+                    Subtitle(
+                        title=a_title,
+                        version=a_title,
+                        language=language,
+                        link=download_link,
+                        download=lambda: download_file(
+                            a_title, download_link, backup_session
+                        ),
+                    )
+                )
+    elif bs_obj.find("div", {"class": "persub"}):
+        # 射手字幕页面
+        for persub in bs_obj.find_all("div", {"class": "persub"}):
+            a_title = persub.h1.text
+            a_link = site_url + persub.h1.a.attrs["href"]
+            a_title = "[ZIMUKU]" + a_title
+
+            # 射手字幕页面
+            r = s.get(a_link, timeout=60)
+            bs_obj = BeautifulSoup(r.text, "html.parser")
+            lang_box = bs_obj.find("ul", {"class": "subinfo"}).find("li")
+            text = lang_box.text
+            download_link = bs_obj.find("a", {"id": "down1"}).attrs["href"]
+
             backup_session = requests.session()
             backup_session.headers.update(s.headers)
-            backup_session.headers["Referer"] = sub_info["link"]
+            backup_session.headers["Referer"] = a_link
             backup_session.cookies.update(s.cookies)
-            sub_info["session"] = backup_session
-
-        return sub_dict
-
-    def download_file(self, file_name, download_link, session=None):
-
-        try:
-            if not session:
-                session = requests.session()
-            with closing(session.get(download_link, stream=True)) as response:
-                filename = response.headers["Content-Disposition"]
-                chunk_size = 1024  # 单次请求最大值
-                # 内容体总大小
-                content_size = int(response.headers["content-length"])
-                bar = ProgressBar(prefix + " Get", file_name.strip(), content_size)
-                sub_data_bytes = b""
-                for data in response.iter_content(chunk_size=chunk_size):
-                    sub_data_bytes += data
-                    bar.refresh(len(sub_data_bytes))
-        except requests.Timeout:
-            return None, None, "false"
-        if ".rar" in filename:
-            datatype = ".rar"
-        elif ".zip" in filename:
-            datatype = ".zip"
-        elif ".7z" in filename:
-            datatype = ".7z"
-        else:
-            datatype = "Unknown"
-
-        return datatype, sub_data_bytes
+            subs.append(
+                Subtitle(
+                    title=a_title,
+                    version=a_title,
+                    language=get_subtitle_languages(text),
+                    link=download_link,
+                    download=lambda: download_file(
+                        a_title, download_link, backup_session
+                    ),
+                )
+            )
+    else:
+        raise ValueError("Zimuku搜索结果出现未知结构页面")
+    return subs
 
 
 if __name__ == "__main__":

@@ -25,10 +25,12 @@ c_pattern = re.compile("[\u4e00-\u9fff]")
 e_pattern = re.compile("[a-zA-Z]")
 
 
+def sanitize_name(name: str):
+    return name.replace("][", ".").replace("[", "").replace("]", "")
+
+
 def get_info_dict(name: str):
-    name = name.replace("[", "")
-    name = name.replace("]", "")
-    info_dict = guessit(name)
+    info_dict = guessit(sanitize_name(name))
 
     # 若视频名中英混合，去掉字少的语言
     title = info_dict.get("title", "")
@@ -41,6 +43,13 @@ def get_info_dict(name: str):
         title = c_pattern.sub("", title)
     info_dict["title"] = title.strip()
     return info_dict
+
+
+def get_jaccard_sim(str1: str, str2: str):
+    a = set(sanitize_name(str1).replace(".", " ").split())
+    b = set(sanitize_name(str2).replace(".", " ").split())
+    c = a.intersection(b)
+    return float(len(c)) / (len(a) + len(b) - len(c))
 
 
 must_matches = ["title", "streaming_service", "season", "episode", "source"]
@@ -86,7 +95,7 @@ def get_best_subtitle(subtitle_names: List[str], video_info: dict):
     return current_max_subtitle
 
 
-def get_keywords(info_dict):
+def get_keywords(info_dict) -> List[str]:
     """ 解析视频名
         返回将各个关键字按重要度降序排列的列表，原始视频信息 """
 
@@ -96,22 +105,18 @@ def get_keywords(info_dict):
     title = info_dict["title"]
 
     base_keyword = title
-    # if info_dict.get('year') and info_dict.get('type') == 'movie':
-    #    base_keyword += (' ' + str(info_dict['year']))  # 若为电影添加年份
     if info_dict.get("season"):
         base_keyword += " s%s" % str(info_dict["season"]).zfill(2)
     keywords.append(base_keyword)
     if info_dict.get("episode"):
-        keywords.append(" e%s" % str(info_dict["episode"]).zfill(2))
-    if info_dict.get("format"):
-        keywords.append(info_dict["format"])
-    if info_dict.get("release_group"):
-        keywords.append(info_dict["release_group"])
+        keywords.append("e%s" % str(info_dict["episode"]).zfill(2))
     if info_dict.get("streaming_service"):
         service_name = info_dict["streaming_service"]
         short_names = service_short_names.get(service_name.lower())
         if short_names:
             keywords.append(short_names)
-    if info_dict.get("screen_size"):
-        keywords.append(str(info_dict["screen_size"]))
+    if info_dict.get("format"):
+        keywords.append(info_dict["format"])
+    if info_dict.get("release_group"):
+        keywords.append(info_dict["release_group"])
     return keywords

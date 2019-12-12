@@ -17,6 +17,7 @@ beautifulsoup4 = ">=4.4.0"
 guessit = "==3.1.0"
 requests = ">=2.0"
 archi = "^0.1.1"
+pydantic = "^1.2"
 
 [tool.poetry.dev-dependencies]
 black = {version = "^19.10b0", allow-prereleases = true}
