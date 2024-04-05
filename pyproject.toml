@@ -11,7 +11,7 @@ repository = "https://github.com/whtsky/getsubtitle"
 getsubtitle = "getsubtitle.main: main"
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = "^3.6.15"
 wheel = "^0.33.6"
 beautifulsoup4 = ">=4.4.0"
 guessit = "==3.1.0"
